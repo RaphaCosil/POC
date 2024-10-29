@@ -1,0 +1,35 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Loading JAVA 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Compilar por MAVEN
+        run: mvn -B package --file pom.xml
+
+      # ------------ESTÁGIO DEPLOY EC2------------
+      - name: Deploy AWS EC2
+        run: |
+          # Creating a SSH key based on the secrets saved key
+          echo "${{secrets.KEY_EC2_AWS}}" > private_key && chmod 400 private_key
+          ssh -o StrictHostKeyChecking=no -i "private_key" ec2-3-84-110-53.compute-1.amazonaws.com << EOF
+            cd /home/ubuntu/POC &&
+            git pull &&
+            mvn clean package -DskipTests &&
+            ./executavel.sh
+          EOF
+      # ------------FIM ESTÁGIO DEPLOY EC2------------
